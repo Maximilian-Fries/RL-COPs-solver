@@ -1,0 +1,151 @@
+import torch
+import torch_geometric
+from dataclasses import dataclass
+from utils import get_adjacency_list
+from problems.problem_base import Problem, State
+from collections import deque
+
+
+class MVC(Problem):
+    NAME = "MVC"
+
+    '''
+    Overall not very efficient. 
+    Goal: Find better method to check if vertex cover is achieved for individual graphs in the batch.
+    '''
+
+    @staticmethod
+    def create_edge_sets(graph, n_nodes):
+        batch_size = graph.num_graphs
+        es = {k: set() for k in range(batch_size)}
+        edges = graph.edge_index
+        num_edges = graph.edge_index.size(-1)
+        for i in range(num_edges):
+            u = edges[0][i].item()
+            v = edges[1][i].item()
+
+            g_ind = u // n_nodes
+            es[g_ind].add((min(u, v) % n_nodes, max(u, v) % n_nodes))
+
+        return es
+
+
+    @staticmethod
+    def make_state(*args):
+        return MVCState.initialize(*args)
+
+    @staticmethod
+    def set_inital_features(graph, normalization='zscore'):
+        degrees = torch_geometric.utils.degree(graph.edge_index[1], graph.num_nodes).view(graph.num_nodes, 1)
+        if normalization == 'zscore':
+            std = torch.std(degrees)
+            if torch.std(degrees) == 0:
+                graph.x = degrees
+                return
+            graph.x = (degrees - torch.mean(degrees)) / std
+        elif normalization == 'min_max':
+            deg_min = torch.min(degrees)
+            deg_max = torch.max(degrees)
+            if deg_min == deg_max:
+                graph.x = torch.ones_like(degrees) - 0.5
+                return
+            graph.x = (degrees - deg_min)/(deg_max-deg_min)
+        else:
+            graph.x = degrees
+
+
+@dataclass
+class MVCState(State):
+    update_nodes: list
+    order: list
+    edge_sets: dict
+    done: bool
+    context_throwback: deque
+
+    @staticmethod
+    def initialize(input, embeddings, n_nodes, throwback_size):
+        batch_size = input.num_graphs
+        prev_a = torch.zeros(batch_size, 1, dtype=torch.int, device=embeddings.device)
+
+        return MVCState(
+            input=input,
+            adj=get_adjacency_list(input, embeddings.device),  # neighbors of dummy node = []
+            embeddings=embeddings,
+            visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),
+            sol_ind=torch.zeros(batch_size, 1, n_nodes, dtype=torch.int32, device=embeddings.device),
+            sol_rep=torch.zeros(batch_size, 1, embeddings.size(-1), device=embeddings.device) - 100000,
+            prev_a=prev_a,
+            step=torch.zeros(1, device=embeddings.device),
+            update_nodes=[],
+            order=[],
+            edge_sets=MVC.create_edge_sets(input, n_nodes),
+            done=True,
+            context_throwback=deque(maxlen=throwback_size)
+        )
+
+    def update(self, selected):
+        self.prev_a = selected[:, None]
+        self.order.append(selected)
+        self.visited = self.visited.scatter(-1, self.prev_a[:, :, None], 1)
+        # self.sol_ind = self.sol_ind.scatter(-1, self.prev_a[:, :, None], 1)
+        self.update_nodes = []
+        self.get_update_nodes(selected)
+        batch_size = selected.size()[0]
+        self.done = True
+
+        '''if inference:
+            n_nodes = self.visited.size()[-1]
+            for i, node in enumerate(selected):
+                if len(self.edge_sets[i]) > 0:
+                    # not all edges are covered yet
+                    self.sol_ind[i, 0, node] = 1
+                    self.edge_sets[i] -= {(min(node.item(), v.item() % n_nodes), max(node.item(), v.item() % n_nodes))
+                                          for v in self.adj[i * n_nodes + node]}
+                    #self.update_nodes = self.update_nodes + [u.item() for u in self.adj[i * n_nodes + node] if
+                     #                                        not self.visited[i, 0, u % n_nodes]]
+                    self.done = self.done and (len(self.edge_sets[i]) == 0)'''
+
+        last_action_embedding = self.embeddings.gather(1,
+                                                  self.prev_a[:, None].expand(batch_size, 1, self.embeddings.size(-1)))
+        self.sol_rep = torch.max(self.sol_rep, last_action_embedding)
+
+        self.step = self.step + 1
+
+    def get_update_nodes(self, selected):
+
+        n_nodes = self.visited.size()[-1]
+        self.update_nodes = [y for x in [self.adj[i * n_nodes + node] for i, node in enumerate(selected)] for y in x]
+
+    def is_done(self):
+        return self.step.item() >= self.visited.size(-1)
+
+    def get_cost(self):
+
+        def get_order_cost(i, pi):
+            edges = self.edge_sets[i]
+            taken = 0
+            n_nodes = self.visited.size(-1)
+            for node in pi:
+                if not edges:
+                    return taken
+                edges -= {(min(node.item(), v.item() % n_nodes), max(node.item(), v.item() % n_nodes))
+                                   for v in self.adj[i*n_nodes + node]}
+                taken += 1
+            return "__error__"
+
+        if self.is_done():
+                    order = torch.stack(self.order, 1)
+                    return torch.tensor([get_order_cost(graph_ind, pi) for graph_ind, pi in enumerate(order)], dtype=torch.float)
+
+        '''if self.is_done():
+                    return torch.sum(self.sol_ind, dim=-1).squeeze().float()'''
+
+
+def pp_state(state):
+    print("prev_a: ", state.prev_a)
+    print("visited: ", state.visited)
+    print("sol_ind: ", state.sol_ind)
+    print("update_nodes: ", state.update_nodes)
+    print("edge_sets: ", state.edge_sets)
+
+
