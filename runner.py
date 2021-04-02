@@ -47,17 +47,6 @@ class Runner:
         )
         os.makedirs(self.opts.save_dir)
 
-
-        # set initial features of each graph in the dataset
-        print("initialize features for each graph")
-        problem = load_problem(self.opts.problem)
-        if self.train_data is not None:
-            for graph in self.train_data:
-                problem.set_inital_features(graph, self.opts.normalization)
-
-        for graph in self.val_data:
-            problem.set_inital_features(graph, self.opts.normalization)
-
         wrap_dataset = True
 
         for epoch in range(self.opts.nepochs):

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from utils import get_adjacency_list
 from problems.problem_base import Problem, State
 from collections import deque
+from torch_geometric.transforms import LocalDegreeProfile
 
 
 class MVC(Problem):
@@ -35,21 +36,32 @@ class MVC(Problem):
         return MVCState.initialize(*args)
 
     @staticmethod
-    def set_inital_features(graph, normalization='zscore'):
+    def set_inital_features(graph, initialization='local_profile'):
         degrees = torch_geometric.utils.degree(graph.edge_index[1], graph.num_nodes).view(graph.num_nodes, 1)
-        if normalization == 'zscore':
+        if initialization == 'zscore':
             std = torch.std(degrees)
             if torch.std(degrees) == 0:
                 graph.x = degrees
                 return
             graph.x = (degrees - torch.mean(degrees)) / std
-        elif normalization == 'min_max':
+        elif initialization == 'min_max':
             deg_min = torch.min(degrees)
             deg_max = torch.max(degrees)
             if deg_min == deg_max:
                 graph.x = torch.ones_like(degrees) - 0.5
                 return
-            graph.x = (degrees - deg_min)/(deg_max-deg_min)
+            graph.x = (degrees - deg_min) / (deg_max - deg_min)
+        elif initialization == 'local_profile':
+            LocalDegreeProfile()(graph)
+        elif initialization == 'local_profile_norm':
+            LocalDegreeProfile()(graph)
+            for i in range(5):
+                std = torch.std(graph.x[:, i])
+                if std == 0:
+                    graph.x[:, i] = 0
+                    continue
+                mean = torch.mean(graph.x[:, i])
+                graph.x[:, i] = (graph.x[:, i] - mean) / std
         else:
             graph.x = degrees
 
@@ -68,7 +80,6 @@ class MVCState(State):
         prev_a = torch.zeros(batch_size, 1, dtype=torch.int, device=embeddings.device)
 
         return MVCState(
-            input=input,
             adj=get_adjacency_list(input, embeddings.device),  # neighbors of dummy node = []
             embeddings=embeddings,
             visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),

@@ -12,7 +12,7 @@ def set_decode_type(model, decode_type):
 
 
 class Attention(nn.Module):
-    def __init__(self, problem, embed_dim, n_encoder_layers, n_heads, tanh_clipping=10, throwback=1):
+    def __init__(self, problem, embed_dim, n_encoder_layers, n_heads, node_dim=5, tanh_clipping=10, throwback=1):
         super(Attention, self).__init__()
         self.problem = problem
         self.embed_dim = embed_dim
@@ -20,7 +20,8 @@ class Attention(nn.Module):
         self.tanh_clipping = tanh_clipping
         self.throwback = throwback
 
-        self.encoder = GraphAttentionEncoder(n_heads=n_heads, embed_dim=embed_dim, n_layers=n_encoder_layers)
+        self.encoder = GraphAttentionEncoder(n_heads=n_heads, embed_dim=embed_dim, n_layers=n_encoder_layers,
+                                             node_dim=node_dim)
 
         self.graph_embed_projection = nn.Linear(embed_dim, embed_dim, bias=False)
         self.prev_node_context_projection = nn.Linear(2 * throwback * embed_dim, embed_dim, bias=False)

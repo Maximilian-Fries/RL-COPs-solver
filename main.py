@@ -27,15 +27,20 @@ def main(opts):
 
     start_dataset_creation = timer()
     training_graphs = MyDataset(filename=opts.train_file, num_samples=opts.graph_number, graph_size=opts.graph_nodes,
-                                    graph_type=opts.graph_type, opts=opts)
+                                is_hybrid=opts.is_hybrid, hybrid_graphs=opts.hybrid_graphs, graph_type=opts.graph_type,
+                                opts=opts)
 
     test_graphs = MyDataset(filename=opts.test_file, num_samples=opts.val_size, graph_size=opts.graph_nodes,
+                            is_hybrid=opts.is_hybrid, hybrid_graphs=opts.hybrid_graphs,
                             graph_type=opts.graph_type, opts=opts, validation=True)
 
     creation_duration = timer() - start_dataset_creation
     print("creation duration: ", time.strftime('%H:%M:%S', time.gmtime(creation_duration)))
 
     torch.manual_seed(opts.seed)  # set seed
+
+    # set dimension of initial features
+    opts.node_dim = test_graphs[0].x.shape[-1]
 
     opts.device = torch.device("cuda:0" if torch.cuda.is_available() and opts.cuda else "cpu")  # set the device
     print("device: ", opts.device)
@@ -46,13 +51,14 @@ def main(opts):
                       embed_dim=opts.embed_dim,
                       n_encoder_layers=opts.n_encoder_layers,
                       n_heads=opts.n_heads,
+                      node_dim=opts.node_dim,
                       throwback=opts.throwback).to(opts.device)
 
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
         print("use DataParallel")
 
-    baseline = RolloutBaseline(model=model, opts=opts) if opts.baseline == 'rollout' else\
+    baseline = RolloutBaseline(model=model, opts=opts) if opts.baseline == 'rollout' else \
         ExponentialBaseline(beta=opts.exp_beta)
 
     optimizer = torch.optim.Adam(
@@ -85,4 +91,3 @@ def main(opts):
 
 if __name__ == '__main__':
     main(get_options())
-

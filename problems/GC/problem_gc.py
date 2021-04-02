@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from utils import get_adjacency_list
 from problems.problem_base import Problem, State
 from collections import deque
+from torch_geometric.transforms import LocalDegreeProfile
 
 
 class GC(Problem):
@@ -15,21 +16,32 @@ class GC(Problem):
         return GCState.initialize(*args)
 
     @staticmethod
-    def set_inital_features(graph, normalization='zscore'):
+    def set_inital_features(graph, initialization='local_profile'):
         degrees = torch_geometric.utils.degree(graph.edge_index[1], graph.num_nodes).view(graph.num_nodes, 1)
-        if normalization == 'zscore':
+        if initialization == 'zscore':
             std = torch.std(degrees)
             if torch.std(degrees) == 0:
                 graph.x = degrees
                 return
-            graph.x = (degrees - torch.mean(degrees)) / std  # z-score
-        elif normalization == 'min_max':
+            graph.x = (degrees - torch.mean(degrees)) / std
+        elif initialization == 'min_max':
             deg_min = torch.min(degrees)
             deg_max = torch.max(degrees)
             if deg_min == deg_max:
                 graph.x = torch.ones_like(degrees) - 0.5
                 return
             graph.x = (degrees - deg_min) / (deg_max - deg_min)
+        elif initialization == 'local_profile':
+            LocalDegreeProfile()(graph)
+        elif initialization == 'local_profile_norm':
+            LocalDegreeProfile()(graph)
+            for i in range(5):
+                std = torch.std(graph.x[:, i])
+                if std == 0:
+                    graph.x[:, i] = 0
+                    continue
+                mean = torch.mean(graph.x[:, i])
+                graph.x[:, i] = (graph.x[:, i]-mean)/std
         else:
             graph.x = degrees
 
@@ -45,7 +57,6 @@ class GCState(State):
         batch_size = input.num_graphs
         prev_a = torch.zeros(batch_size, 1, dtype=torch.int, device=embeddings.device)
         return GCState(
-            input=input,
             adj=get_adjacency_list(input, embeddings.device),
             embeddings=embeddings,
             visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),
@@ -72,7 +83,7 @@ class GCState(State):
         self.sol_ind = self.sol_ind.scatter(-1, self.prev_a[:, :, None], colors[:, None, None]).type(torch.int32)
 
         # update solution representation
-        i = 0  # index of the current graph
+        '''i = 0  # index of the current graph
         for node, color in zip(selected, colors):
             if color >= len(self.sol_rep[i]):
                 # assert color == len(self.sol_rep[i])
@@ -81,7 +92,7 @@ class GCState(State):
             else:
                 self.sol_rep[i][color.item()] = torch.max(self.sol_rep[i][color.item()],
                                                           self.embeddings[i, node.item()])
-            i += 1
+            i += 1'''
 
         self.step = self.step + 1
 
@@ -100,6 +111,15 @@ class GCState(State):
                 # update neighbors of node
                 for u in self.adj[i * n_nodes + node]:
                     self.neighbor_colors[i][u.item() % n_nodes].add(color)
+                # update solution representation
+                if color >= len(self.sol_rep[i]):
+                    # assert color == len(self.sol_rep[i])
+                    # create a new partial solution set
+                    self.sol_rep[i].append(self.embeddings[i, node.item()])
+                else:
+                    self.sol_rep[i][color] = torch.max(self.sol_rep[i][color],
+                                                              self.embeddings[i, node.item()])
+
                 return color
 
     def is_done(self):
@@ -107,7 +127,7 @@ class GCState(State):
 
     def get_cost(self):
         if self.is_done():
-            return torch.tensor([len(self.sol_rep[k]) for k in range(self.input.num_graphs)], dtype=torch.float,
+            return torch.tensor([len(self.sol_rep[k]) for k in range(self.visited.shape[0])], dtype=torch.float,
                                 device=self.prev_a.device)
 
 

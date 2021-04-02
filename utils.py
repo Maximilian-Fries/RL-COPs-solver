@@ -6,6 +6,8 @@ from model import set_decode_type
 from torch_geometric.data import Batch
 import torch_geometric.utils as tutils
 import numpy as np
+from networkx.generators import random_tree, erdos_renyi_graph, watts_strogatz_graph, barabasi_albert_graph, \
+    gaussian_random_partition_graph
 
 
 def collate(graphs):
@@ -58,6 +60,19 @@ def rollout(model, dataset, opts, mode='greedy'):
         for bat
         in DataLoader(dataset, batch_size=opts.eval_batch_size, collate_fn=collate, shuffle=False)
     ], 0)
+
+
+def get_graph_function(graph_type, opts):
+    supported_types = {
+        'Tree': [random_tree, ()],
+        'ER': [erdos_renyi_graph, [opts.p]],
+        'WS': [watts_strogatz_graph, [opts.k, opts.p_ws]],
+        'BA': [barabasi_albert_graph, [opts.m]],
+        'GRP': [gaussian_random_partition_graph, [opts.s, opts.v, opts.p_in, opts.p_out]]
+    }
+    graph_params = supported_types.get(graph_type, None)
+    assert graph_params is not None, 'The type {} is not supported'.format(graph_type)
+    return graph_params
 
 
 def load_problem(name):

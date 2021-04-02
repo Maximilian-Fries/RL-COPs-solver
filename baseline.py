@@ -77,10 +77,8 @@ class RolloutBaseline(Baseline):
 
         if dataset is None:
             self.dataset = MyDataset(num_samples=self.opts.val_size, graph_size=self.opts.graph_nodes,
-                                     graph_type=self.opts.graph_type, opts=self.opts, validation=True)
-            for graph in self.dataset:
-                self.problem.set_inital_features(graph, self.opts.normalization)
-
+                                     graph_type=self.opts.graph_type, is_hybrid=self.opts.is_hybrid,
+                                     hybrid_graphs=self.opts.hybrid_graphs, opts=self.opts, validation=True)
         else:
             self.dataset = dataset
 

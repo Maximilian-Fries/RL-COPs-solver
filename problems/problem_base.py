@@ -23,7 +23,6 @@ class Problem(object):
 
 @dataclass
 class State:
-    input: torch_geometric.data.Data
     adj: list
     embeddings: torch.Tensor
 
