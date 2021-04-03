@@ -15,6 +15,7 @@ You can evalute a model under different conditions with the `model_random_graph_
 - `problem_name`: Supported problems are 'GC' (default) and 'MVC'.
 - `initialization`: Specifies how the features of a graph should be initialized. Possible options are 'zscore' (default), 'min_max', 'degree', 'local_profile', 'local_profile_norm'.
 - `n_graphs`: The number of graphs in the test dataset. 
+- `sparse_ER`: If True, the expected average degree (`opts.er_d`) of a node in ER graphs remains constant over different graph sizes. 
 - `opts`: This can be used to specify the parameters for graph generation. If `None`, the default opts are used. 
 - `save`: Specify if the results should be saved (default False).
 - `save_file`: The path of the file where the results are saved if `save` is True. 
