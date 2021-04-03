@@ -53,6 +53,7 @@ def model_random_graph_evaluation(model_file, model_name,
                                   problem_name='GC',
                                   initialization='zscore',
                                   n_graphs=1000,
+                                  sparse_ER=False,
                                   opts=None,
                                   save=False, save_file=None, sampling=False, n_samples=200,
                                   test_types=None,
@@ -89,7 +90,14 @@ def model_random_graph_evaluation(model_file, model_name,
     for graph_type in iterables[0]:
         graphf, args = get_graph_function(graph_type, opts)
         assert graphf is not None
+
         for n_nodes in test_sizes:
+            if graph_type == 'ER' and sparse_ER:
+                eps = 1.2
+                er_p_t = min(eps * np.log(n_nodes) / n_nodes, 1.0)
+                opts.p = max(opts.er_d / (n_nodes - 1), er_p_t)
+                _, args = get_graph_function('ER', opts)
+
             data = [tutils.from_networkx(graphf(n_nodes, *args, seed=i + 121212)) for i in range(n_graphs)]
             for graph in data:
                 problem.set_inital_features(graph, initialization=opts.initialization)
@@ -114,4 +122,5 @@ def model_random_graph_evaluation(model_file, model_name,
 
 
 # Example usage
-model_random_graph_evaluation('P-GRP-Z.pt', 'P-GRP')
+model_random_graph_evaluation('P-Hybrid2-LDPN.pt', 'P-GRP-LDPN', initialization='local_profile_norm',
+                              problem_name='GC', test_types=['ER'], sparse_ER=True)
