@@ -34,6 +34,7 @@ def get_options():
     # Graph parameters
     parser.add_argument('--m', type=int, default=4, help='degree for barabasi-albert graphs')
     parser.add_argument('--p', type=float, default=.15, help='edge probability for erdos-renyi graphs')
+    parser.add_argument('--er_d', type=float, default=7.5, help='expected average degree for ER graphs')
     parser.add_argument('--k', type=int, default=5, help='degree for watts-strogatz graphs')
     parser.add_argument('--p_ws', type=float, default=.1, help='edge probability for watts-strogatz graphs')
     parser.add_argument('--s', type=float, default=6, help='mean cluster size of grp')
