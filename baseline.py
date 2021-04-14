@@ -123,7 +123,7 @@ class RolloutBaseline(Baseline):
     def state_dict(self):
         return {
             'model': self.model,
-            'dataset': self.dataset,
+            'dataset': [],
             'epoch': self.epoch
         }
 
