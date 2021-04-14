@@ -23,8 +23,12 @@ def save_procedure(df_q, save, save_file):
     elif save:
         df_model = pd.read_excel(save_file,
                                  index_col=[0, 1])
-
-        df = pd.concat([df_model, df_q], axis=1)
+        if df_q.columns[0] in list(df_model.columns):
+            print('Model {} already exists. Existing entries might be overwritten.'.format(df_q.columns[0]))
+            df_model.update(df_q)
+            df = df_model
+        else:
+            df = pd.concat([df_model, df_q], axis=1)
         df.to_excel(save_file)
 
 
@@ -65,7 +69,9 @@ def model_random_graph_evaluation(model_file, model_name,
         # sizes of the graphs on which we test the model
         test_sizes = [20, 50, 100, 1000]
 
-    node_dim = 5 if initialization in ['local_profile', 'local_profile_norm'] else 1
+    node_dim = {'local_profile': 5,
+                'local_profile_norm': 5,
+                'global_profile': 3}.get(initialization, 1)
 
     # if not specified, use default opts. opts is used to get the parameters for graph generation.
     if opts is None:
@@ -79,12 +85,11 @@ def model_random_graph_evaluation(model_file, model_name,
     columns = [model_name]
     df_q = pd.DataFrame(index=index, columns=columns)
 
-    checkpoint_file = join(MODEL_DIR, problem_name, model_file)
+    checkpoint_file = join(MODEL_DIR, problem_name,  model_file)
     print(checkpoint_file)
     model = Attention(problem=problem, embed_dim=64, n_encoder_layers=3, n_heads=4, tanh_clipping=10, throwback=1,
                       node_dim=node_dim)
     checkpoint = load_checkpoint(checkpoint_file)
-
     model.load_state_dict(checkpoint['model'])
 
     for graph_type in iterables[0]:
@@ -98,7 +103,7 @@ def model_random_graph_evaluation(model_file, model_name,
                 opts.p = max(opts.er_d / (n_nodes - 1), er_p_t)
                 _, args = get_graph_function('ER', opts)
 
-            data = [tutils.from_networkx(graphf(n_nodes, *args, seed=i + 121212)) for i in range(n_graphs)]
+            data = [tutils.from_networkx(graphf(n_nodes, *args, seed=i + 1873221)) for i in range(n_graphs)]
             for graph in data:
                 problem.set_inital_features(graph, initialization=opts.initialization)
             opts.graph_nodes = n_nodes
@@ -118,9 +123,11 @@ def model_random_graph_evaluation(model_file, model_name,
             print("finished model evaluation on {} with {} nodes: {}".format(graph_type, n_nodes, model_cost))
         print("_________")
 
+    if sparse_ER:
+        df_q = df_q.rename(index={'ER': 'S-ER'})
     save_procedure(df_q=df_q, save=save, save_file=save_file)
 
 
-# Example usage
-model_random_graph_evaluation('P-Hybrid2-LDPN.pt', 'P-GRP-LDPN', initialization='local_profile_norm',
-                              problem_name='GC', test_types=['ER'], sparse_ER=True)
+model_random_graph_evaluation('P-Hybrid2-Z.pt', 'P-Hybrid2-Z', initialization='zscore',
+                                  save=False, problem_name='GC', test_types=['ER'], sparse_ER=False,
+                              test_sizes=[20,50,100])
