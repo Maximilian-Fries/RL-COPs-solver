@@ -42,6 +42,11 @@ class GC(Problem):
                     continue
                 mean = torch.mean(graph.x[:, i])
                 graph.x[:, i] = (graph.x[:, i]-mean)/std
+        elif initialization == 'global_profile':
+            n = graph.num_nodes
+            std = torch.ones(n)*torch.std(degrees.squeeze())
+            mean = torch.ones(n)*torch.mean(degrees.squeeze())
+            graph.x = torch.stack([degrees.squeeze(), mean, std], dim=1)
         else:
             graph.x = degrees
 
