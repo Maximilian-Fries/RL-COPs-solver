@@ -1,15 +1,10 @@
 import torch
 import torch_geometric
-import itertools
 from dataclasses import dataclass
 from utils import get_adjacency_list
 from problems.problem_base import Problem, State
 from collections import deque
 from torch_geometric.transforms import LocalDegreeProfile
-import numpy as np
-import matplotlib.pyplot as plt
-import networkx as nx
-from networkx.generators import barabasi_albert_graph
 
 
 class GP(Problem):
@@ -93,7 +88,7 @@ class GPState(State):
 
     def get_cost(self):
         def single_graph_cost(graph_ind):
-            partitition_mask = self.sol_ind[graph_ind].squeeze() > 0
+            partitition_mask = self.sol_ind[graph_ind].squeeze()
             incident = [self.adj[graph_ind*self.n_nodes + i] for i in range(self.n_nodes) if partitition_mask[i]]
             incident = [y for x in incident for y in x]  # unfold neighbors into a single list
             return len([u for u in incident if not partitition_mask[u % self.n_nodes]])
@@ -107,51 +102,3 @@ def pp_state(state):
     print("sol_ind: ", state.sol_ind)
     print("update_nodes: ", state.update_nodes)
 
-
-'''graph_size = 10
-ds = [torch_geometric.utils.from_networkx(barabasi_albert_graph(10, m=4, seed=7132+i)) for i in range(3)]
-
-for graph in ds:
-    GP.set_inital_features(graph, initialization='local_profile_norm')
-
-#nx_graph = torch_utils.to_networkx(graph, to_undirected=True)
-#print("nx_graph: ", nx_graph)
-
-
-batch_g = torch_geometric.data.Batch.from_data_list([ds[0], ds[1], ds[2]])
-print("edge index")
-unbatch = batch_g.to_data_list()
-for g in unbatch:
-    print(g.edge_index)
-
-
-embeddings = torch.arange(150).view(3, 10, 5)
-
-state = GP().make_state(batch_g, embeddings, 10, 1)
-np.random.seed(192)
-
-p1 = np.random.permutation(10)
-p2 = np.random.permutation(10)
-p3 = np.random.permutation(10)
-
-selections = list(map(list, zip(*[p1,p2,p3])))
-
-
-for selected in selections:
-    if not state.is_done():
-        s = torch.tensor(selected)
-        state.update(s)
-        pp_state(state)
-        print("______________________")
-
-print("node orders: ", selections)
-print("costs: ",state.get_cost())
-graph = torch_geometric.utils.to_networkx(ds[0], to_undirected=True)
-pos = nx.spring_layout(graph)
-for i in range(graph_size):
-    if state.sol_ind[0,0,i]:
-        pos[i][0] -= 1
-    else:
-        pos[i][0] += 1
-nx.draw(graph, node_color=state.sol_ind[0].squeeze(), with_labels=True, pos=pos)
-plt.show()'''
