@@ -76,10 +76,11 @@ def get_graph_function(graph_type, opts):
 
 
 def load_problem(name):
-    from problems import GC, MVC
+    from problems import GC, MVC, GP
     problem = {
         'GC': GC,
-        'MVC': MVC
+        'MVC': MVC,
+        'GP': GP
     }.get(name, None)
     assert problem is not None, "Currently unsupported problem: {}!".format(name)
     return problem
