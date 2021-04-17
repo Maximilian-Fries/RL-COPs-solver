@@ -15,22 +15,23 @@ def get_metis_partition(graph, recurisve=False, nparts=2):
     """
     cost, parts = part_graph(graph=graph, nparts=nparts, recursive=recurisve, tpwgts=[.5, .5], ufactor=1)
     partition_nodes = np.sum(parts)
-    if np.abs(partition_nodes - (graph.number_of_nodes()//2)) > 1:
+    #print('partition_nodes: ', parts)
+    if partition_nodes != graph.number_of_nodes()/2:
         # partition is not balanced
         return -1
     else:
         return cost
 
-'''size=500
+'''size=20
 graph = barabasi_albert_graph(n=size, m=3, seed=12121212)
+print(graph.number_of_nodes()/2)
 
-cost, parts = part_graph(graph=graph, nparts=2, recursive=False, tpwgts=[.5, .5], ufactor=1)
-print('cost: {}\nparts: {}'.format(cost, parts))
-print('#nodes in partition: ', np.sum(parts))
+cost = get_metis_partition(graph, recurisve=True)
+print('cost: {}'.format(cost))
 colors = ['yellow', 'lightblue']
 pos = nx.spring_layout(graph)
-color_vec = [0]*size
-for i, p in enumerate(parts):
+color_vec = [0]*size'''
+'''for i, p in enumerate(parts):
     color_vec[i] = colors[p]
     pos[i][0] = pos[i][0] + 2 if parts[i] else pos[i][0] - 2'''
 
