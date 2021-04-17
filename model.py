@@ -67,11 +67,10 @@ class Attention(nn.Module):
             last_action_embedding = embeddings.gather(1,
                                                       state.prev_a[:, None].expand(batch_size, 1, self.embed_dim))
 
-            if self.problem.NAME == 'GC':
+            if self.problem.NAME == 'GC' or self.problem.NAME == 'GP':
                 last_sol_embedding = torch.cat([state.sol_rep[k][state.sol_ind[k, 0, prev]] for k, prev
                                                 in enumerate(state.prev_a)], dim=-1).view(batch_size, 1, self.embed_dim)
             else:
-                # assert self.problem.NAME == 'MVC'
                 last_sol_embedding = state.sol_rep
 
             prev_node_context = torch.cat((last_action_embedding, last_sol_embedding,
