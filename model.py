@@ -67,7 +67,7 @@ class Attention(nn.Module):
             last_action_embedding = embeddings.gather(1,
                                                       state.prev_a[:, None].expand(batch_size, 1, self.embed_dim))
 
-            if self.problem.NAME == 'GC' or self.problem.NAME == 'GP':
+            if self.problem.NAME == 'GC' or (self.problem.NAME == 'GP' and self.problem.state_version == 2):
                 last_sol_embedding = torch.cat([state.sol_rep[k][state.sol_ind[k, 0, prev]] for k, prev
                                                 in enumerate(state.prev_a)], dim=-1).view(batch_size, 1, self.embed_dim)
             else:

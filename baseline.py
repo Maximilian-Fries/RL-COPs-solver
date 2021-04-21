@@ -63,7 +63,7 @@ class RolloutBaseline(Baseline):
         super(Baseline, self).__init__()
 
         self.opts = opts
-        self.problem = load_problem(opts.problem)
+        self.problem = load_problem(opts.problem, opts)
 
         self._update_model(model, epoch)
 

@@ -11,9 +11,13 @@ import random
 class GP(Problem):
     NAME = "GP"
 
-    @staticmethod
-    def make_state(*args, state_version=2):
-        if state_version == 1:
+    def __init__(self, state_version=1):
+        super(GP, self).__init__()
+        self.state_version = state_version
+
+    #@staticmethod
+    def make_state(self, *args):
+        if self.state_version == 1:
             return GPState.initialize(*args)
         else:
             return GPState_2.initialize(*args)

@@ -45,7 +45,7 @@ def main(opts):
     opts.device = torch.device("cuda:0" if torch.cuda.is_available() and opts.cuda else "cpu")  # set the device
     print("device: ", opts.device)
 
-    problem = load_problem(opts.problem)
+    problem = load_problem(opts.problem, opts)
 
     model = Attention(problem=problem,
                       embed_dim=opts.embed_dim,

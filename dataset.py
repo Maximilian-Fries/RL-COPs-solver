@@ -57,7 +57,7 @@ class MyDataset(Dataset):
         self.size = len(self.data)
 
         # initialize the node features
-        problem = load_problem(opts.problem)
+        problem = load_problem(opts.problem, opts)
         assert self.data is not None, 'unable to generate dataset from given parameters!'
         for graph in self.data:
             problem.set_inital_features(graph, opts.initialization)

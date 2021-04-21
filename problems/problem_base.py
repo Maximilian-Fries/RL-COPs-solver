@@ -1,11 +1,9 @@
 import torch
-import torch_geometric
 from dataclasses import dataclass
 
 
 class Problem(object):
     NAME = None
-
     single_solution_set = None
 
     @staticmethod
