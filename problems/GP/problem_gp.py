@@ -11,11 +11,10 @@ import random
 class GP(Problem):
     NAME = "GP"
 
-    def __init__(self, state_version=1):
+    def __init__(self, state_version=2):
         super(GP, self).__init__()
         self.state_version = state_version
 
-    #@staticmethod
     def make_state(self, *args):
         if self.state_version == 1:
             return GPState.initialize(*args)
@@ -89,8 +88,7 @@ class GPState(State):
         self.step = self.step + 1
 
     def get_update_nodes(self, selected):
-        self.update_nodes = [y for x in [self.adj[i * self.n_nodes + node] for i, node in enumerate(selected)] for y in
-                             x]
+        self.update_nodes = [y for x in [self.adj[i * self.n_nodes + node] for i, node in enumerate(selected)] for y in x]
 
     def is_done(self):
         return self.step >= self.n_nodes // 2
@@ -189,8 +187,8 @@ class GPState_2(State):
             return 1
 
     def get_update_nodes(self, selected):
-        self.update_nodes = [y for x in [self.adj[i * self.n_nodes + node] for i, node in enumerate(selected)] for y in
-                             x]
+        self.update_nodes = [y for x in [self.adj[i * self.n_nodes + node] for i, node in enumerate(selected)]
+                             for y in x]
 
     def is_done(self):
         return self.step >= self.n_nodes

@@ -5,13 +5,13 @@ def get_options():
     parser = argparse.ArgumentParser(description='RL running machine')
     parser.add_argument('--problem', default='GP', help="The problem to solve, currently supports GC and MVC")
 
-    parser.add_argument('--graph_type', metavar='GRAPH', default='BA', help='Type of graph to optimize')
+    parser.add_argument('--graph_type', metavar='GRAPH', default='ER', help='Type of graph to optimize')
     parser.add_argument('--is_hybrid', dest='is_hybrid', action='store_true')
     parser.add_argument('--no-is_hybrid', dest='is_hybrid', action='store_false')
     parser.set_defaults(is_hybrid=False)
     parser.add_argument('--hybrid_graphs', default=[], nargs='*', type=str)
 
-    parser.add_argument('--gp_state_version', default=1)
+    parser.add_argument('--gp_state_version', default=2)
 
     parser.add_argument('--graph_nodes', type=int, default=50, help='number of nodes in the graphs')
     parser.add_argument('--val_size', type=int, default=1000, help='number of graphs in validation dataset')
