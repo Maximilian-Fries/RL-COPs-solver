@@ -11,7 +11,7 @@ def get_options():
     parser.set_defaults(is_hybrid=False)
     parser.add_argument('--hybrid_graphs', default=[], nargs='*', type=str)
 
-    parser.add_argument('--gp_state_version', default=2)
+    parser.add_argument('--gp_state_version', default=2, type=int)
 
     parser.add_argument('--graph_nodes', type=int, default=50, help='number of nodes in the graphs')
     parser.add_argument('--val_size', type=int, default=1000, help='number of graphs in validation dataset')
