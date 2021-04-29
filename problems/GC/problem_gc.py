@@ -56,9 +56,10 @@ class GCState(State):
     neighbor_colors: dict
     update_nodes: list
     context_throwback: deque
+    decoding_type: str
 
     @staticmethod
-    def initialize(input, embeddings, n_nodes, throwback_size):
+    def initialize(input, embeddings, n_nodes, throwback_size, decoding_type):
         batch_size = input.num_graphs
         prev_a = torch.zeros(batch_size, 1, dtype=torch.int, device=embeddings.device)
         return GCState(
@@ -71,7 +72,8 @@ class GCState(State):
             step=torch.zeros(1, device=embeddings.device),
             neighbor_colors={i: {j: set() for j in range(n_nodes)} for i in range(batch_size)},
             update_nodes=[],
-            context_throwback=deque(maxlen=throwback_size)
+            context_throwback=deque(maxlen=throwback_size),
+            decoding_type=decoding_type
         )
 
     # the transition function
@@ -79,8 +81,9 @@ class GCState(State):
 
         self.prev_a = selected[:, None]
         self.visited = self.visited.scatter(-1, self.prev_a[:, :, None], 1)
-        self.update_nodes = []
-        self.get_update_nodes(selected)
+        if self.decoding_type == 'local':
+            self.update_nodes = []
+            self.get_update_nodes(selected)
 
         colors = torch.tensor([self.color_node(i, node) for i, node in enumerate(selected)],
                               device=self.prev_a.device, dtype=torch.int)
@@ -116,14 +119,24 @@ class GCState(State):
                 # update neighbors of node
                 for u in self.adj[i * n_nodes + node]:
                     self.neighbor_colors[i][u.item() % n_nodes].add(color)
+
+                if self.decoding_type == 'static':
+                    '''
+                    There is no solution representation required in static decoding mode.
+                    Hence, one can just append a single number for each new color in the graph.
+                    '''
+                    if color >= len(self.sol_rep[i]):
+                        self.sol_rep[i].append(1)
+
+                    return color
+
                 # update solution representation
                 if color >= len(self.sol_rep[i]):
                     # assert color == len(self.sol_rep[i])
                     # create a new partial solution set
                     self.sol_rep[i].append(self.embeddings[i, node.item()])
                 else:
-                    self.sol_rep[i][color] = torch.max(self.sol_rep[i][color],
-                                                              self.embeddings[i, node.item()])
+                    self.sol_rep[i][color] = torch.max(self.sol_rep[i][color], self.embeddings[i, node.item()])
 
                 return color
 

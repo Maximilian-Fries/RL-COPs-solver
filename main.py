@@ -52,7 +52,8 @@ def main(opts):
                       n_encoder_layers=opts.n_encoder_layers,
                       n_heads=opts.n_heads,
                       node_dim=opts.node_dim,
-                      throwback=opts.throwback).to(opts.device)
+                      throwback=opts.throwback,
+                      decoding_type=opts.decoding_type).to(opts.device)
 
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)

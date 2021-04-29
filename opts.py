@@ -3,7 +3,7 @@ import argparse
 
 def get_options():
     parser = argparse.ArgumentParser(description='RL running machine')
-    parser.add_argument('--problem', default='GP', help="The problem to solve, currently supports GC and MVC")
+    parser.add_argument('--problem', default='GC', help="The problem to solve, currently supports GC and MVC")
 
     parser.add_argument('--graph_type', metavar='GRAPH', default='ER', help='Type of graph to optimize')
     parser.add_argument('--is_hybrid', dest='is_hybrid', action='store_true')
@@ -11,7 +11,7 @@ def get_options():
     parser.set_defaults(is_hybrid=False)
     parser.add_argument('--hybrid_graphs', default=[], nargs='*', type=str)
 
-    parser.add_argument('--gp_state_version', default=2, type=int)
+    parser.add_argument('--gp_state_version', default=1, type=int)
 
     parser.add_argument('--graph_nodes', type=int, default=50, help='number of nodes in the graphs')
     parser.add_argument('--val_size', type=int, default=1000, help='number of graphs in validation dataset')
@@ -22,6 +22,7 @@ def get_options():
     parser.add_argument('--throwback', type=int, default=1, help='number of previous nodes to include in context')
     parser.add_argument('--seed', type=int, default=1313, help='Random seed to use')
     parser.add_argument('--initialization', default='local_profile_norm')
+    parser.add_argument('--decoding_type', default='global')
 
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')

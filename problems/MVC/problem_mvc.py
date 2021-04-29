@@ -71,11 +71,11 @@ class MVCState(State):
     update_nodes: list
     order: list
     edge_sets: dict
-    done: bool
     context_throwback: deque
+    decoding_type: str
 
     @staticmethod
-    def initialize(input, embeddings, n_nodes, throwback_size):
+    def initialize(input, embeddings, n_nodes, throwback_size, decoding_type):
         batch_size = input.num_graphs
         prev_a = torch.zeros(batch_size, 1, dtype=torch.int, device=embeddings.device)
 
@@ -90,8 +90,8 @@ class MVCState(State):
             update_nodes=[],
             order=[],
             edge_sets=MVC.create_edge_sets(input, n_nodes),
-            done=True,
-            context_throwback=deque(maxlen=throwback_size)
+            context_throwback=deque(maxlen=throwback_size),
+            decoding_type=decoding_type
         )
 
     def update(self, selected):
@@ -99,10 +99,11 @@ class MVCState(State):
         self.order.append(selected)
         self.visited = self.visited.scatter(-1, self.prev_a[:, :, None], 1)
         # self.sol_ind = self.sol_ind.scatter(-1, self.prev_a[:, :, None], 1)
-        self.update_nodes = []
-        self.get_update_nodes(selected)
+        if self.decoding_type == 'static':
+            self.update_nodes = []
+            self.get_update_nodes(selected)
         batch_size = selected.size()[0]
-        self.done = True
+        #self.done = True
 
         '''if inference:
             n_nodes = self.visited.size()[-1]
