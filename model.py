@@ -38,6 +38,7 @@ class Attention(nn.Module):
         embeddings = self.encoder(graph).view(batch_size, n_nodes, -1)
 
         log_p, pi, costs = self.decoding(graph, embeddings, batch_size, n_nodes)
+        print('decoding finished')
 
         # get log_likelihood for corresponding action
         _log_p = log_p.gather(-1, pi.unsqueeze(-1)).squeeze(-1).sum(1)
