@@ -3,13 +3,15 @@ import argparse
 
 def get_options():
     parser = argparse.ArgumentParser(description='RL running machine')
-    parser.add_argument('--problem', default='GC', help="The problem to solve, currently supports GC and MVC")
+    parser.add_argument('--problem', default='MVC', help="The problem to solve, currently supports GC and MVC")
 
     parser.add_argument('--graph_type', metavar='GRAPH', default='ER', help='Type of graph to optimize')
     parser.add_argument('--is_hybrid', dest='is_hybrid', action='store_true')
     parser.add_argument('--no-is_hybrid', dest='is_hybrid', action='store_false')
     parser.set_defaults(is_hybrid=False)
     parser.add_argument('--hybrid_graphs', default=[], nargs='*', type=str)
+
+    parser.add_argument('--encoder_type', default='GAT', type=str, help="GAT or GCN")
 
     parser.add_argument('--gp_state_version', default=1, type=int)
 
@@ -21,8 +23,8 @@ def get_options():
     parser.add_argument('--nepochs', type=int, metavar='n', default='5', help='number of epochs')
     parser.add_argument('--throwback', type=int, default=1, help='number of previous nodes to include in context')
     parser.add_argument('--seed', type=int, default=1313, help='Random seed to use')
-    parser.add_argument('--initialization', default='local_profile_norm')
-    parser.add_argument('--decoding_type', default='global')
+    parser.add_argument('--initialization', default='zscore')
+    parser.add_argument('--decoding_type', default='local')
 
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
