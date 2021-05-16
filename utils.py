@@ -7,7 +7,7 @@ from torch_geometric.data import Batch
 import torch_geometric.utils as tutils
 import numpy as np
 from networkx.generators import random_tree, erdos_renyi_graph, watts_strogatz_graph, barabasi_albert_graph, \
-    gaussian_random_partition_graph
+    gaussian_random_partition_graph, random_geometric_graph
 
 
 def collate(graphs):
@@ -63,12 +63,22 @@ def rollout(model, dataset, opts, mode='greedy'):
 
 
 def get_graph_function(graph_type, opts):
+    eps = 1.2
+    er_p_t = min(eps * np.log(opts.graph_nodes) / opts.graph_nodes, 1.0)
+    sparse_er_p = max(opts.er_d / (opts.graph_nodes - 1), er_p_t)
+
+    sparse_grp_p = 3.5/(opts.graph_nodes - opts.s)
+
     supported_types = {
         'Tree': [random_tree, ()],
         'ER': [erdos_renyi_graph, [opts.p]],
+        'S-ER': [erdos_renyi_graph, [sparse_er_p]],
         'WS': [watts_strogatz_graph, [opts.k, opts.p_ws]],
         'BA': [barabasi_albert_graph, [opts.m]],
-        'GRP': [gaussian_random_partition_graph, [opts.s, opts.v, opts.p_in, opts.p_out]]
+        'GRP': [gaussian_random_partition_graph, [opts.s, opts.v, opts.p_in, opts.p_out]],
+        'S-GRP': [gaussian_random_partition_graph, [opts.s, opts.v, opts.p_in, sparse_grp_p]],
+        'RG': [random_geometric_graph, [(lambda graph_size:
+                                         min(1.2 * np.sqrt(np.log(graph_size) / (np.pi * graph_size)), 1.0))(opts.graph_nodes)]]
     }
     graph_params = supported_types.get(graph_type, None)
     assert graph_params is not None, 'The type {} is not supported'.format(graph_type)
