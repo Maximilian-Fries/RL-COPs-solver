@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import DataParallel
-from attention_encoder import GraphAttentionEncoder
+from attention_encoder import GraphAttentionEncoder, GCNEncoder
 import math
 
 
@@ -12,7 +12,7 @@ def set_decode_type(model, decode_type):
 
 
 class Attention(nn.Module):
-    def __init__(self, problem, embed_dim, n_encoder_layers, n_heads, node_dim=5,
+    def __init__(self, problem, embed_dim, n_encoder_layers, n_heads, node_dim=5, encoder_type='GAT',
                  tanh_clipping=10, throwback=1, decoding_type='local'):
         super(Attention, self).__init__()
         self.problem = problem
@@ -23,15 +23,16 @@ class Attention(nn.Module):
         self.decoding_type = decoding_type
 
         self.encoder = GraphAttentionEncoder(n_heads=n_heads, embed_dim=embed_dim, n_layers=n_encoder_layers,
-                                             node_dim=node_dim)
+                                             node_dim=node_dim) \
+            if encoder_type == 'GAT' else GCNEncoder(embed_dim=embed_dim, node_dim=node_dim, n_layers=n_encoder_layers)
 
-        if decoding_type == 'static':
+        if self.decoding_type == 'static':
             self.graph_embed_projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
         else:
             self.graph_embed_projection = nn.Linear(embed_dim, embed_dim, bias=False)
 
-        if decoding_type != 'static':
+        if self.decoding_type != 'static':
             self.prev_node_context_projection = nn.Linear(2 * throwback * embed_dim, embed_dim, bias=False)
             self.first_action_embedding = nn.Parameter(torch.Tensor(2 * throwback * self.embed_dim))
             self.first_action_embedding.data.uniform_(-1, 1)
