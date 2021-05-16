@@ -52,6 +52,7 @@ def main(opts):
                       n_encoder_layers=opts.n_encoder_layers,
                       n_heads=opts.n_heads,
                       node_dim=opts.node_dim,
+                      encoder_type=opts.encoder_type,
                       throwback=opts.throwback,
                       decoding_type=opts.decoding_type).to(opts.device)
 
@@ -70,8 +71,16 @@ def main(opts):
 
     tb_logger = None
     if not opts.no_tensorboard:
+        decoding_code = {'local': 'L', 'global': 'G', 'static': 'S'}.get(opts.decoding_type, None)
+        assert decoding_code is not None, "The decoding type {} is not supported".format(opts.decoding_type)
+
+        if opts.encoder_type == 'GCN':
+            decoding_code = decoding_code + '-GCN'
+
         timestamp = datetime.now().strftime("%d_%m_%Y_%H:%M")
-        tb_logger = TbLogger(os.path.join('logs', "{}_{}_".format(opts.problem, opts.graph_nodes), timestamp))
+        graph_type = opts.graph_type if not opts.is_hybrid else 'Hybrid'
+        model_name = 'P-{}-{}-{}'.format(graph_type, decoding_code, timestamp)
+        tb_logger = TbLogger(os.path.join('logs', "{}_{}_".format(opts.problem, opts.graph_nodes), model_name))
 
     runner = Runner(
         model=model,

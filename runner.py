@@ -38,12 +38,20 @@ class Runner:
 
     def train(self):
         # create file for this training run
+        decoding_code = {'local': 'L', 'global': 'G', 'static': 'S'}.get(self.opts.decoding_type, None)
+        assert decoding_code is not None, "The decoding type {} is not supported".format(self.opts.decoding_type)
+
+        if self.opts.encoder_type == 'GCN':
+            decoding_code = decoding_code + '-GCN'
+
         timestamp = datetime.now().strftime("%d_%m_%Y_%H:%M")
+        graph_type = self.opts.graph_type if not self.opts.is_hybrid else 'Hybrid'
+        model_name = 'P-{}-{}-{}'.format(graph_type, decoding_code, timestamp)
 
         self.opts.save_dir = os.path.join(
             self.opts.ckpt,
             "{}_{}".format(self.opts.problem, self.opts.graph_nodes),
-            timestamp
+            model_name
         )
         os.makedirs(self.opts.save_dir)
 
@@ -128,7 +136,6 @@ class Runner:
         grad_norms = clip_grad_norms(self.optimizer.param_groups, self.opts.max_grad_norm)
 
         self.optimizer.step()
-
 
         # Logging
         if step % int(self.opts.log_step) == 0:
