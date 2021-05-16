@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch_geometric.nn import GATConv
+from torch_geometric.nn import GATConv, GCNConv
 
 torch.set_printoptions(profile="full", linewidth=200)
 
@@ -58,4 +58,18 @@ class GraphAttentionEncoder(nn.Module):
 
         h = self.final_layer(h, edge_index)
 
+        return h
+
+
+class GCNEncoder(nn.Module):
+    def __init__(self, node_dim=1, n_layers=3, embed_dim=64):
+        super(GCNEncoder, self).__init__()
+        self.first_layer = GCNConv(node_dim, embed_dim)
+        self.layers = nn.ModuleList([GCNConv(embed_dim, embed_dim) for _ in range(n_layers-1)])
+
+    def forward(self, data):
+        h, edge_index = data.x, data.edge_index
+        h = self.first_layer(h, edge_index)
+        for gcn_layer in self.layers:
+            h = gcn_layer(h, edge_index)
         return h
