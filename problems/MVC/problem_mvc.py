@@ -16,22 +16,6 @@ class MVC(Problem):
     '''
 
     @staticmethod
-    def create_edge_sets(graph, n_nodes):
-        batch_size = graph.num_graphs
-        es = {k: set() for k in range(batch_size)}
-        edges = graph.edge_index
-        num_edges = graph.edge_index.size(-1)
-        for i in range(num_edges):
-            u = edges[0][i].item()
-            v = edges[1][i].item()
-
-            g_ind = u // n_nodes
-            es[g_ind].add((min(u, v) % n_nodes, max(u, v) % n_nodes))
-
-        return es
-
-
-    @staticmethod
     def make_state(*args):
         return MVCState.initialize(*args)
 
@@ -102,19 +86,6 @@ class MVCState(State):
         if self.decoding_type == 'local':
             self.update_nodes = []
             self.get_update_nodes(selected)
-        #self.done = True
-
-        '''if inference:
-            n_nodes = self.visited.size()[-1]
-            for i, node in enumerate(selected):
-                if len(self.edge_sets[i]) > 0:
-                    # not all edges are covered yet
-                    self.sol_ind[i, 0, node] = 1
-                    self.edge_sets[i] -= {(min(node.item(), v.item() % n_nodes), max(node.item(), v.item() % n_nodes))
-                                          for v in self.adj[i * n_nodes + node]}
-                    #self.update_nodes = self.update_nodes + [u.item() for u in self.adj[i * n_nodes + node] if
-                     #                                        not self.visited[i, 0, u % n_nodes]]
-                    self.done = self.done and (len(self.edge_sets[i]) == 0)'''
 
         if self.decoding_type != 'static':
             batch_size = selected.size()[0]
@@ -154,9 +125,6 @@ class MVCState(State):
                     order = torch.stack(self.order, 1)
                     return torch.tensor([get_order_cost(graph_ind, pi) for graph_ind, pi in enumerate(order)],
                                         dtype=torch.float)
-
-        '''if self.is_done():
-                    return torch.sum(self.sol_ind, dim=-1).squeeze().float()'''
 
 
 def pp_state(state):
