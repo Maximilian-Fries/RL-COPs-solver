@@ -70,9 +70,9 @@ class MVC(Problem):
 class MVCState(State):
     update_nodes: list
     order: list
-    edge_sets: dict
     context_throwback: deque
     decoding_type: str
+    input:torch_geometric.data.Data
 
     @staticmethod
     def initialize(input, embeddings, n_nodes, throwback_size, decoding_type):
@@ -81,6 +81,7 @@ class MVCState(State):
 
         return MVCState(
             adj=get_adjacency_list(input, embeddings.device),  # neighbors of dummy node = []
+            input=input,
             embeddings=embeddings,
             visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),
             sol_ind=torch.zeros(batch_size, 1, n_nodes, dtype=torch.int32, device=embeddings.device),
@@ -89,7 +90,6 @@ class MVCState(State):
             step=torch.zeros(1, device=embeddings.device),
             update_nodes=[],
             order=[],
-            edge_sets=MVC.create_edge_sets(input, n_nodes),
             context_throwback=deque(maxlen=throwback_size),
             decoding_type=decoding_type
         )
@@ -99,10 +99,9 @@ class MVCState(State):
         self.order.append(selected)
         self.visited = self.visited.scatter(-1, self.prev_a[:, :, None], 1)
         # self.sol_ind = self.sol_ind.scatter(-1, self.prev_a[:, :, None], 1)
-        if self.decoding_type == 'static':
+        if self.decoding_type == 'local':
             self.update_nodes = []
             self.get_update_nodes(selected)
-        batch_size = selected.size()[0]
         #self.done = True
 
         '''if inference:
@@ -117,9 +116,12 @@ class MVCState(State):
                      #                                        not self.visited[i, 0, u % n_nodes]]
                     self.done = self.done and (len(self.edge_sets[i]) == 0)'''
 
-        last_action_embedding = self.embeddings.gather(1,
-                                                  self.prev_a[:, None].expand(batch_size, 1, self.embeddings.size(-1)))
-        self.sol_rep = torch.max(self.sol_rep, last_action_embedding)
+        if self.decoding_type != 'static':
+            batch_size = selected.size()[0]
+            last_action_embedding = self.embeddings.gather(1,
+                                                           self.prev_a[:, None].expand(batch_size, 1,
+                                                                                       self.embeddings.size(-1)))
+            self.sol_rep = torch.max(self.sol_rep, last_action_embedding)
 
         self.step = self.step + 1
 
@@ -133,21 +135,25 @@ class MVCState(State):
 
     def get_cost(self):
 
+        graphs = self.input.to_data_list()
+
         def get_order_cost(i, pi):
-            edges = self.edge_sets[i]
-            taken = 0
-            n_nodes = self.visited.size(-1)
-            for node in pi:
-                if not edges:
-                    return taken
-                edges -= {(min(node.item(), v.item() % n_nodes), max(node.item(), v.item() % n_nodes))
-                                   for v in self.adj[i*n_nodes + node]}
-                taken += 1
-            return "__error__"
+            graph = graphs[i]
+            n = graph.num_nodes
+            subset = []
+            edge_index = graph.edge_index
+            mask = torch.zeros(n, dtype=torch.bool)
+            for v in pi:
+                mask[subset] = 1
+                covered_edges = mask[edge_index[0]] | mask[edge_index[1]]
+                if torch.all(covered_edges):
+                    return len(subset)
+                subset.append(v.item())
 
         if self.is_done():
                     order = torch.stack(self.order, 1)
-                    return torch.tensor([get_order_cost(graph_ind, pi) for graph_ind, pi in enumerate(order)], dtype=torch.float)
+                    return torch.tensor([get_order_cost(graph_ind, pi) for graph_ind, pi in enumerate(order)],
+                                        dtype=torch.float)
 
         '''if self.is_done():
                     return torch.sum(self.sol_ind, dim=-1).squeeze().float()'''
