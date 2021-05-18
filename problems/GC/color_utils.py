@@ -14,7 +14,7 @@ def get_heuristic_coloring(graph, strategy='random_sequential'):
 
 
 def get_graph_colorings(graphs, save_file):
-    strategies = ['random_sequential', 'largest_first', 'DSATUR']
+    strategies = ['random_sequential', 'largest_first', 'DSATUR', 'smallest_last']
 
     heuristic_results = {strategy: np.zeros(len(graphs)) for strategy in
                          strategies}
