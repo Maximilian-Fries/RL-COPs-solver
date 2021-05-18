@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from networkx.generators import barabasi_albert_graph
 import numpy as np
 import random
+import cplex
 
 
 def get_metis_partition(graph, recurisve=False, nparts=2):
@@ -19,7 +20,7 @@ def get_metis_partition(graph, recurisve=False, nparts=2):
     # print('partition_nodes: ', parts)
     if partition_nodes != graph.number_of_nodes() / 2:
         # partition is not balanced
-        return -1
+        return np.NaN
     else:
         return cost
 
@@ -86,3 +87,55 @@ def random_partition(graph):
             partition[node] = 1
 
     return cut_size, partition
+
+
+def cplex_solve(graph):
+    prob = cplex.Cplex()
+    '''prob.set_log_stream(None)
+    prob.set_error_stream(None)
+    prob.set_warning_stream(None)
+    prob.set_results_stream(None)'''
+    prob.parameters.timelimit.set(100.0)
+    prob.set_problem_name("Graph Paritioning")
+    prob.set_problem_type(cplex.Cplex.problem_type.LP)
+
+    prob.objective.set_sense(prob.objective.sense.minimize)
+
+    edges = [[str(x), str(y)] for x, y in list(graph.edges)]
+
+    n = graph.number_of_nodes()
+    m = graph.number_of_edges()
+
+    names = ['y_{0}_{1}'.format(i, j) for i in range(m) for j in range(m)]  # list(map(str,list(graph.edges)))
+    w_obj = [1]*m
+    low_bnd = [0]*m
+    upr_bnd = [1]*m
+    prob.variables.add(names=names, obj=w_obj, lb=low_bnd, ub=upr_bnd)
+
+    nodes_names = ['x' + str(v) for v in range(n)]
+    prob.variables.add(names=nodes_names, obj=[1]*n, lb=[0]*n, ub=[1]*n)
+
+    all_int = [(var, prob.variables.type.integer) for var in names]
+    prob.variables.set_types(all_int)
+
+    constraints = list(zip(edges, [[1, 1] for _ in range(len(edges))]))
+    constraint_names = ["".join(x[0]) for x in constraints]
+
+    # Each edge must have at least one vertex
+    rhs = [1] * len(constraints)
+
+    constraint_senses = ["G"] * len(constraints)
+    prob.linear_constraints.add(names=constraint_names,
+                                lin_expr=constraints,
+                                senses=constraint_senses,
+                                rhs=rhs)
+
+    prob.linear_constraints.add(names=constraint_names,
+                                lin_expr=constraints,
+                                senses=constraint_senses,
+                                rhs=rhs)
+
+    #print("Problem Type: %s" % prob.problem_type[prob.get_problem_type()])
+    prob.solve()
+    #print("Solution result is: %s" % prob.solution.get_status_string())
+    return np.sum(prob.solution.get_values())
