@@ -4,9 +4,12 @@ from networkx.algorithms.approximation import min_weighted_vertex_cover
 import operator
 import numpy as np
 import cplex
+import networkx
 
 
 def list_right(graph):
+    if isinstance(graph, torch_geometric.data.Data):
+        graph = torch_utils.to_networkx(graph, to_undirected=True)
     degrees = [val for (node, val) in graph.degree()]
     inds = list(range(len(degrees)))
     inds_sorted = sorted(inds, key=lambda ind: degrees[ind])
@@ -21,6 +24,8 @@ def list_right(graph):
 
 # extremely inefficient, but does the job
 def get_iter_greedy(graph):
+    if isinstance(graph, torch_geometric.data.Data):
+        graph = torch_utils.to_networkx(graph, to_undirected=True)
     graph = graph.copy()
     edge_deg = dict.fromkeys(graph.edges)
     vc = set()
@@ -44,17 +49,35 @@ def get_iter_greedy(graph):
     return vc
 
 
+def random_cover(graph):
+    if isinstance(graph, networkx.classes.graph.Graph):
+        graph = torch_utils.from_networkx(graph)
+    n = graph.num_nodes
+    pi = np.random.permutation(n)
+    subset = []
+    edge_index = graph.edge_index
+    mask = np.zeros(n, dtype=np.bool)
+    for v in pi:
+        mask[subset] = 1
+        covered_edges = mask[edge_index[0]] | mask[edge_index[1]]
+        if np.all(covered_edges):
+            return len(subset)
+        subset.append(v.item())
+
+
 def get_heuristic_cover(graph, strategy):
-    if isinstance(graph, torch_geometric.data.Data):
-        graph = torch_utils.to_networkx(graph, to_undirected=True)
 
     if strategy == 'iterative':
+        if isinstance(graph, torch_geometric.data.Data):
+            graph = torch_utils.to_networkx(graph, to_undirected=True)
         return len(min_weighted_vertex_cover(graph))
 
     elif strategy == 'iter_greedy':
         return len(get_iter_greedy(graph))
     elif strategy == 'list_right':
         return len(list_right(graph))
+    elif strategy == 'random':
+        return random_cover(graph)
 
 
 def cplex_solve(graph):
@@ -96,4 +119,3 @@ def cplex_solve(graph):
     prob.solve()
     #print("Solution result is: %s" % prob.solution.get_status_string())
     return np.sum(prob.solution.get_values())
-
