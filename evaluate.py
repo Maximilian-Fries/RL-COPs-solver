@@ -28,7 +28,10 @@ def save_procedure(df_q, save, save_file):
             df_model.update(df_q)
             df = df_model
         else:
-            df = pd.concat([df_model, df_q], axis=1)
+            print('new Model name...')
+            df_model[df_q.columns[0]] = np.NaN
+            df_model.update(df_q)
+            df = df_model
         df.to_excel(save_file)
 
 
@@ -57,14 +60,20 @@ def model_random_graph_evaluation(model_file, model_name,
                                   problem_name='GC',
                                   initialization='zscore',
                                   n_graphs=1000,
-                                  sparse_ER=False,
+                                  encoder_type='GAT',
                                   opts=None,
                                   save=False, save_file=None, sampling=False, n_samples=200,
+                                  throwback=1,
                                   test_types=None,
-                                  test_sizes=None):
-    problem = load_problem(problem_name)
+                                  test_sizes=None,
+                                  decoding_type='local'):
+    # if not specified, use default opts. opts is used to get the parameters for graph generation.
+    if opts is None:
+        opts = get_options()
+
+    problem = load_problem(problem_name, opts)
     if test_types is None:
-        test_types = ['ER', 'BA', 'WS', 'GRP']
+        test_types = ['ER', 'BA', 'WS', 'GRP', 'RG']
     if test_sizes is None:
         # sizes of the graphs on which we test the model
         test_sizes = [20, 50, 100, 1000]
@@ -72,10 +81,6 @@ def model_random_graph_evaluation(model_file, model_name,
     node_dim = {'local_profile': 5,
                 'local_profile_norm': 5,
                 'global_profile': 3}.get(initialization, 1)
-
-    # if not specified, use default opts. opts is used to get the parameters for graph generation.
-    if opts is None:
-        opts = get_options()
 
     opts.initialization = initialization
     opts.device = torch.device("cuda:0" if torch.cuda.is_available() and opts.cuda else "cpu")
@@ -87,21 +92,17 @@ def model_random_graph_evaluation(model_file, model_name,
 
     checkpoint_file = join(MODEL_DIR, problem_name,  model_file)
     print(checkpoint_file)
-    model = Attention(problem=problem, embed_dim=64, n_encoder_layers=3, n_heads=4, tanh_clipping=10, throwback=1,
-                      node_dim=node_dim)
+    model = Attention(problem=problem, embed_dim=64, n_encoder_layers=3, n_heads=4, tanh_clipping=10, throwback=throwback,
+                      node_dim=node_dim, decoding_type=decoding_type, encoder_type=encoder_type)
     checkpoint = load_checkpoint(checkpoint_file)
     model.load_state_dict(checkpoint['model'])
 
     for graph_type in iterables[0]:
-        graphf, args = get_graph_function(graph_type, opts)
-        assert graphf is not None
 
         for n_nodes in test_sizes:
-            if graph_type == 'ER' and sparse_ER:
-                eps = 1.2
-                er_p_t = min(eps * np.log(n_nodes) / n_nodes, 1.0)
-                opts.p = max(opts.er_d / (n_nodes - 1), er_p_t)
-                _, args = get_graph_function('ER', opts)
+            opts.graph_nodes = n_nodes
+            graphf, args = get_graph_function(graph_type, opts)
+            assert graphf is not None
 
             data = [tutils.from_networkx(graphf(n_nodes, *args, seed=i + 1873221)) for i in range(n_graphs)]
             for graph in data:
@@ -118,16 +119,19 @@ def model_random_graph_evaluation(model_file, model_name,
                         print('   sampled {} solutions'.format(i))
                 model_costs = np.min(solutions, axis=0)
 
-            model_cost = np.mean(model_costs)
+            model_cost = np.nanmean(model_costs)
             df_q.loc[graph_type, n_nodes][model_name] = model_cost
             print("finished model evaluation on {} with {} nodes: {}".format(graph_type, n_nodes, model_cost))
         print("_________")
 
-    if sparse_ER:
-        df_q = df_q.rename(index={'ER': 'S-ER'})
     save_procedure(df_q=df_q, save=save, save_file=save_file)
 
 
-model_random_graph_evaluation('P-Hybrid2-Z.pt', 'P-Hybrid2-Z', initialization='zscore',
-                                  save=False, problem_name='GC', test_types=['ER'], sparse_ER=False,
-                              test_sizes=[20,50,100])
+# Example: Evaluate all GAT models with local decoding, trained on seed 2, for the GC problem
+
+for model in ['Hybrid2', 'ER', 'BA', 'WS', 'GRP']:
+    model_random_graph_evaluation('GAT-Experiments/Seed2/P-{}-L-2.pt'.format(model), 'P-{}-L'.format(model),
+                                  initialization='zscore',
+                                  save=False, save_file=None,
+                                  problem_name='GC', test_types=['BA', 'ER', 'GRP', 'S-ER', 'WS', 'S-GRP', 'RG'],
+                                  encoder_type='GAT', decoding_type='local', test_sizes=[20,50])
