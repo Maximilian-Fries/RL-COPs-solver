@@ -71,7 +71,7 @@ def main(opts):
 
     tb_logger = None
     if not opts.no_tensorboard:
-        decoding_code = {'local': 'L', 'global': 'G', 'static': 'S'}.get(opts.decoding_type, None)
+        decoding_code = {'local': 'L', 'global': 'G', 'static': 'S', 'zero_context': 'ZC'}.get(opts.decoding_type, None)
         assert decoding_code is not None, "The decoding type {} is not supported".format(opts.decoding_type)
 
         if opts.encoder_type == 'GCN':

@@ -120,9 +120,9 @@ class GCState(State):
                 for u in self.adj[i * n_nodes + node]:
                     self.neighbor_colors[i][u.item() % n_nodes].add(color)
 
-                if self.decoding_type == 'static':
+                if self.decoding_type == 'static' or self.decoding_type == 'zero_context':
                     '''
-                    There is no solution representation required in static decoding mode.
+                    There is no solution representation required in static or zero_context decoding mode.
                     Hence, one can just append a single number for each new color in the graph.
                     '''
                     if color >= len(self.sol_rep[i]):

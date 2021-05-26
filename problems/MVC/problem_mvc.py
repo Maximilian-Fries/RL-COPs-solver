@@ -87,7 +87,7 @@ class MVCState(State):
             self.update_nodes = []
             self.get_update_nodes(selected)
 
-        if self.decoding_type != 'static':
+        if self.decoding_type != 'static' and self.decoding_type != 'zero_context':
             batch_size = selected.size()[0]
             last_action_embedding = self.embeddings.gather(1,
                                                            self.prev_a[:, None].expand(batch_size, 1,

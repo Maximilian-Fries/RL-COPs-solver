@@ -38,7 +38,7 @@ class Runner:
 
     def train(self):
         # create file for this training run
-        decoding_code = {'local': 'L', 'global': 'G', 'static': 'S'}.get(self.opts.decoding_type, None)
+        decoding_code = {'local': 'L', 'global': 'G', 'static': 'S', 'zero_context': 'ZC'}.get(self.opts.decoding_type, None)
         assert decoding_code is not None, "The decoding type {} is not supported".format(self.opts.decoding_type)
 
         if self.opts.encoder_type == 'GCN':
