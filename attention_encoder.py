@@ -1,8 +1,5 @@
-import torch
 from torch import nn
 from torch_geometric.nn import GATConv, GCNConv
-
-torch.set_printoptions(profile="full", linewidth=200)
 
 
 class MultiHeadAttentionLayer(nn.Module):

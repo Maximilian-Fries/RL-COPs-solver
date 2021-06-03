@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import DataParallel
 from attention_encoder import GraphAttentionEncoder, GCNEncoder
 import math
+import torch_geometric
 
 
 def set_decode_type(model, decode_type):
@@ -39,10 +40,9 @@ class Attention(nn.Module):
 
         self.project_node_embeddings = nn.Linear(embed_dim, embed_dim, bias=False)
 
-    # @profile(output_file='forward.prof', sort_by='cumulative', lines_to_print=20, strip_dirs=True)
     def forward(self, graph, n_nodes):
 
-        batch_size = graph.num_graphs
+        batch_size = graph.num_graphs if isinstance(graph, torch_geometric.data.Batch) else 1
 
         embeddings = self.encoder(graph).view(batch_size, n_nodes, -1)
 
@@ -71,8 +71,12 @@ class Attention(nn.Module):
         return selected
 
     def set_decode_type(self, decode_type):
+        # set the decoding type (either greedy or sampling).
         self.decode_type = decode_type
 
+    '''
+    Build the the context embedding.
+    '''
     def get_previous_node_context(self, embeddings, state):
         batch_size = embeddings.size()[0]
         if state.step == 0:
@@ -92,7 +96,10 @@ class Attention(nn.Module):
             state.context_throwback.appendleft(torch.cat((last_action_embedding, last_sol_embedding), dim=-1))
             return prev_node_context
 
-    # @profile(output_file='decoding6.prof', sort_by='cumulative', lines_to_print=20, strip_dirs=True)
+    '''
+    Adding a node to the temporary solution only affects the neighbors of this node. The remaining unselected nodes keep
+    the scores from previous iterations.  
+    '''
     def decoding_local(self, graph, embeddings, batch_size, n_nodes):
         # get initial state
         state = self.problem.make_state(graph, embeddings, n_nodes, self.throwback, self.decoding_type)
@@ -132,6 +139,7 @@ class Attention(nn.Module):
 
                     update_contexts = context_embedding.squeeze(1).gather(0, graph_inds[:, None].expand(
                         len(v), self.embed_dim))
+
                     # get attention_k of nodes in v
                     v_attention_key = attention_K.view(batch_size * n_nodes, self.embed_dim)[v]
 
@@ -140,7 +148,9 @@ class Attention(nn.Module):
                     logits = logits.view(-1).scatter(0, v, update_logits).view(batch_size, 1, n_nodes)
 
             logits = logits.masked_fill(mask, - math.inf)
-            log_p = torch.log_softmax(logits, dim=-1)  # compute softmax over remaining nodes
+
+            # compute softmax over remaining nodes
+            log_p = torch.log_softmax(logits, dim=-1)
 
             assert not torch.isnan(log_p).any()
 
@@ -155,6 +165,9 @@ class Attention(nn.Module):
 
         return torch.stack(outputs, 1), torch.stack(sequences, 1), costs
 
+    '''
+    All attention weights are recomputed in each time step.
+    '''
     def decoding_global(self, graph, embeddings, batch_size, n_nodes):
         # get initial state
         state = self.problem.make_state(graph, embeddings, n_nodes, self.throwback, self.decoding_type)
@@ -173,7 +186,6 @@ class Attention(nn.Module):
 
         # decoding steps
         while not state.is_done():
-
             context_embedding = graph_projection_fixed + \
                                 self.prev_node_context_projection(self.get_previous_node_context(embeddings, state))
 
@@ -199,6 +211,9 @@ class Attention(nn.Module):
 
         return torch.stack(outputs, 1), torch.stack(sequences, 1), costs
 
+    '''
+    Attention weights are computed only once.
+    '''
     def decoding_static(self, graph, embeddings, batch_size, n_nodes):
         # get initial state
         state = self.problem.make_state(graph, embeddings, n_nodes, self.throwback, self.decoding_type)
@@ -230,6 +245,10 @@ class Attention(nn.Module):
 
         return torch.stack(outputs, 1), torch.stack(sequences, 1), costs
 
+    '''
+    As in static decoding the attention weights are computed only once. The difference here is that we don't learn
+    a bias to transform the global graph embedding.
+    '''
     def decoding_zero_context(self, graph, embeddings, batch_size, n_nodes):
         # get initial state
         state = self.problem.make_state(graph, embeddings, n_nodes, self.throwback, self.decoding_type)

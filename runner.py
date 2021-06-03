@@ -37,7 +37,7 @@ class Runner:
         return avg_cost
 
     def train(self):
-        # create file for this training run
+        # create directory for this training run
         decoding_code = {'local': 'L', 'global': 'G', 'static': 'S', 'zero_context': 'ZC'}.get(self.opts.decoding_type, None)
         assert decoding_code is not None, "The decoding type {} is not supported".format(self.opts.decoding_type)
 
@@ -58,12 +58,12 @@ class Runner:
         wrap_dataset = True
 
         for epoch in range(self.opts.nepochs):
-            print("Start train epoch {}, lr={}".format(epoch, self.optimizer.param_groups[0]['lr']))
+            print("Start epoch {}".format(epoch))
             step = epoch * (self.opts.graph_number // self.opts.batch_size)
             start_time = time.time()
 
             if wrap_dataset:
-                # update blvalues in first iteration or if bl model was updated
+                # update baseline values in first iteration or if baseline model was updated
                 training_dataset = self.baseline.wrap_dataset(self.train_data)
 
                 training_dataloader = DataLoader(training_dataset, batch_size=self.opts.batch_size,
@@ -104,7 +104,6 @@ class Runner:
             epoch_callback_duration = time.time() - start_epoch_callback
             print("Finished epoch_callback, took {}".format(time.strftime('%H:%M:%S', time.gmtime(epoch_callback_duration))))
 
-            # lr_scheduler should be called at end of epoch
             self.lr_scheduler.step()
             print("_________________________________")
 
@@ -128,7 +127,6 @@ class Runner:
 
         loss = ((cost - bl_val) * log_likelihood).mean()
 
-        # Perform backward pass and optimization step
         self.optimizer.zero_grad()
         loss.backward()
 

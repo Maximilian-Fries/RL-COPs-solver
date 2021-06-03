@@ -10,11 +10,6 @@ from torch_geometric.transforms import LocalDegreeProfile
 class MVC(Problem):
     NAME = "MVC"
 
-    '''
-    Overall not very efficient. 
-    Goal: Find better method to check if vertex cover is achieved for individual graphs in the batch.
-    '''
-
     @staticmethod
     def make_state(*args):
         return MVCState.initialize(*args)
@@ -60,11 +55,11 @@ class MVCState(State):
 
     @staticmethod
     def initialize(input, embeddings, n_nodes, throwback_size, decoding_type):
-        batch_size = input.num_graphs
+        batch_size = input.num_graphs if isinstance(input, torch_geometric.data.Batch) else 1
         prev_a = torch.zeros(batch_size, 1, dtype=torch.int, device=embeddings.device)
 
         return MVCState(
-            adj=get_adjacency_list(input, embeddings.device),  # neighbors of dummy node = []
+            adj=get_adjacency_list(input),
             input=input,
             embeddings=embeddings,
             visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),
@@ -82,7 +77,7 @@ class MVCState(State):
         self.prev_a = selected[:, None]
         self.order.append(selected)
         self.visited = self.visited.scatter(-1, self.prev_a[:, :, None], 1)
-        # self.sol_ind = self.sol_ind.scatter(-1, self.prev_a[:, :, None], 1)
+
         if self.decoding_type == 'local':
             self.update_nodes = []
             self.get_update_nodes(selected)
@@ -105,8 +100,7 @@ class MVCState(State):
         return self.step.item() >= self.visited.size(-1)
 
     def get_cost(self):
-
-        graphs = self.input.to_data_list()
+        graphs = self.input.to_data_list() if isinstance(self.input, torch_geometric.data.Batch) else [self.input]
 
         def get_order_cost(i, pi):
             graph = graphs[i]
@@ -132,6 +126,5 @@ def pp_state(state):
     print("visited: ", state.visited)
     print("sol_ind: ", state.sol_ind)
     print("update_nodes: ", state.update_nodes)
-    print("edge_sets: ", state.edge_sets)
 
 

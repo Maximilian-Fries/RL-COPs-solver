@@ -93,10 +93,7 @@ def main(opts):
         opts=opts,
     )
 
-    if opts.test_only:
-        runner.validate()
-    else:
-        runner.train()
+    runner.train()
 
 
 if __name__ == '__main__':

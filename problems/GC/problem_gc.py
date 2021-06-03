@@ -60,10 +60,10 @@ class GCState(State):
 
     @staticmethod
     def initialize(input, embeddings, n_nodes, throwback_size, decoding_type):
-        batch_size = input.num_graphs
+        batch_size = input.num_graphs if isinstance(input, torch_geometric.data.Batch) else 1
         prev_a = torch.zeros(batch_size, 1, dtype=torch.int, device=embeddings.device)
         return GCState(
-            adj=get_adjacency_list(input, embeddings.device),
+            adj=get_adjacency_list(input),
             embeddings=embeddings,
             visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),
             sol_ind=torch.zeros(batch_size, 1, n_nodes, dtype=torch.int32, device=embeddings.device) - 1,
@@ -89,18 +89,6 @@ class GCState(State):
                               device=self.prev_a.device, dtype=torch.int)
 
         self.sol_ind = self.sol_ind.scatter(-1, self.prev_a[:, :, None], colors[:, None, None]).type(torch.int32)
-
-        # update solution representation
-        '''i = 0  # index of the current graph
-        for node, color in zip(selected, colors):
-            if color >= len(self.sol_rep[i]):
-                # assert color == len(self.sol_rep[i])
-                # create a new partial solution set
-                self.sol_rep[i].append(self.embeddings[i, node.item()])
-            else:
-                self.sol_rep[i][color.item()] = torch.max(self.sol_rep[i][color.item()],
-                                                          self.embeddings[i, node.item()])
-            i += 1'''
 
         self.step = self.step + 1
 

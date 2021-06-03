@@ -57,12 +57,13 @@ class GPState(State):
     update_nodes: list
     context_throwback: deque
     n_nodes: int
+    decoding_type: str
 
     @staticmethod
-    def initialize(input, embeddings, n_nodes, throwback_size):
-        batch_size = input.num_graphs
+    def initialize(input, embeddings, n_nodes, throwback_size, decoding_type):
+        batch_size = input.num_graphs if isinstance(input, torch_geometric.data.Batch) else 1
         return GPState(
-            adj=get_adjacency_list(input, embeddings.device),
+            adj=get_adjacency_list(input),
             embeddings=embeddings,
             visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),
             sol_ind=torch.zeros(batch_size, 1, n_nodes, dtype=torch.int32, device=embeddings.device),
@@ -71,20 +72,23 @@ class GPState(State):
             step=torch.zeros(1, device=embeddings.device),
             update_nodes=[],
             context_throwback=deque(maxlen=throwback_size),
-            n_nodes=n_nodes
+            n_nodes=n_nodes,
+            decoding_type=decoding_type
         )
 
     def update(self, selected):
         self.prev_a = selected[:, None]
         self.visited = self.visited.scatter(-1, self.prev_a[:, :, None], 1)
         self.sol_ind = self.sol_ind.scatter(-1, self.prev_a[:, :, None], 1)
-        self.update_nodes = []
-        self.get_update_nodes(selected)
-        batch_size = selected.size()[0]
-        last_action_embedding = self.embeddings.gather(1,
-                                                       self.prev_a[:, None].expand(batch_size, 1,
-                                                                                   self.embeddings.size(-1)))
-        self.sol_rep = torch.max(self.sol_rep, last_action_embedding)
+        if self.decoding_type == 'local':
+            self.update_nodes = []
+            self.get_update_nodes(selected)
+        if self.decoding_type != 'static' and self.decoding_type != 'zero_context':
+            batch_size = selected.size()[0]
+            last_action_embedding = self.embeddings.gather(1,
+                                                           self.prev_a[:, None].expand(batch_size, 1,
+                                                                                       self.embeddings.size(-1)))
+            self.sol_rep = torch.max(self.sol_rep, last_action_embedding)
         self.step = self.step + 1
 
     def get_update_nodes(self, selected):
@@ -119,7 +123,7 @@ class GPState_2(State):
     @staticmethod
     def initialize(input, embeddings, n_nodes, throwback_size):
 
-        batch_size = input.num_graphs
+        batch_size = input.num_graphs if isinstance(input, torch_geometric.data.Batch) else 1
         return GPState_2(
             adj=get_adjacency_list(input, embeddings.device),
             embeddings=embeddings,

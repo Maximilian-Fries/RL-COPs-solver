@@ -117,39 +117,7 @@ def log_values(cost, grad_norms, epoch, batch_id, step,
         tb_logger.log_value('grad_norm_clipped', grad_norms_clipped[0], step)
 
 
-def get_neighbors(edge_index, node, node_degree=None):
-
-    row, col = edge_index[0], edge_index[1]
-    if node_degree is None:
-        node_degree = tutils.degree(col)[node]
-
-    start_row_ind = tensor_bs(node, row)
-    if start_row_ind == -1:
-        return torch.tensor([])
-    neighbors = col[start_row_ind:start_row_ind+node_degree]
-    return neighbors
-
-
-def tensor_bs(value, elements):
-    left, right = 0, len(elements) - 1
-
-    while left <= right:
-        middle = (left + right) // 2
-
-        if elements[middle] == value:
-            while middle >= 0 and elements[middle] == value:
-                middle -= 1
-            return middle+1
-
-        if elements[middle] < value:
-            left = middle + 1
-        elif elements[middle] > value:
-            right = middle - 1
-
-    return -1
-
-
-def get_adjacency_list(graph, device):
+def get_adjacency_list(graph):
     n = graph.num_nodes
 
     edges = graph.edge_index[1]
