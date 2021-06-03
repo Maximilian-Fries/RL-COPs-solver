@@ -8,6 +8,7 @@ A General Reinforcement Learning Solver for Combinatorial Optimization Problems 
 - NumPy
 - SciPy
 - Pandas
+- Tensorboard Logger
 
 ## How to train a model?
 Training a new model is very simple. Specify the training parameters such as the problem to be learned, the number of graphs in the dataset, the distribution of training graphs, etc., which are specified in the ops.py file. Instead of training on a single synthetic graph distribution ('BA', 'ER', 'WS', 'GRP', 'S-ER', 'S-GRP' and 'Tree'), one can also train on different graph types using `--is_hybrid` and then providing the graph distributions, e.g.  `--hybrid_graphs 'BA' 'WS' 'ER'`. You can also provide your own training and validation data in the form of pickle files with `--train_file` and `--test_file`. For more details about the possible settings, read the parmeter describtions in `opts.py`. Starting a training run could look as following:
