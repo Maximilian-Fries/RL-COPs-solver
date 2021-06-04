@@ -53,7 +53,7 @@ class Attention(nn.Module):
         else:
             log_p, pi, costs = self.decoding_static(graph, embeddings, batch_size, n_nodes)
 
-        # get log_likelihood for corresponding action
+        # get log_likelihood for corresponding actions
         _log_p = log_p.gather(-1, pi.unsqueeze(-1)).squeeze(-1).sum(1)
 
         return costs, _log_p
@@ -213,6 +213,8 @@ class Attention(nn.Module):
 
     '''
     Attention weights are computed only once.
+    The difference between static and zero-context decoding is that we don't learn a bias to transform the 
+    global graph embedding for zero-context.
     '''
     def decoding_static(self, graph, embeddings, batch_size, n_nodes):
         # get initial state
@@ -245,37 +247,3 @@ class Attention(nn.Module):
 
         return torch.stack(outputs, 1), torch.stack(sequences, 1), costs
 
-    '''
-    As in static decoding the attention weights are computed only once. The difference here is that we don't learn
-    a bias to transform the global graph embedding.
-    '''
-    def decoding_zero_context(self, graph, embeddings, batch_size, n_nodes):
-        # get initial state
-        state = self.problem.make_state(graph, embeddings, n_nodes, self.throwback, self.decoding_type)
-
-        graph_embedding = torch.max(embeddings, 1)[0].view(batch_size, 1, self.embed_dim)
-        graph_projection = self.graph_embed_projection(graph_embedding)
-        attention_K = self.project_node_embeddings(embeddings)
-
-        outputs = []
-        sequences = []
-
-        logits = torch.matmul(graph_projection, attention_K.transpose(-2, -1)) / math.sqrt(self.embed_dim)
-        logits = (torch.tanh(logits) * self.tanh_clipping)
-
-        # decoding steps
-        while not state.is_done():
-            mask = state.visited > 0
-            logits = logits.masked_fill(mask, - math.inf)
-            log_p = torch.log_softmax(logits, dim=-1)
-
-            assert not torch.isnan(log_p).any()
-            selected = self.select_node(log_p.exp()[:, 0, :])
-            state.update(selected)
-
-            outputs.append(log_p[:, 0, :])
-            sequences.append(selected)
-
-        costs = state.get_cost()
-
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), costs
