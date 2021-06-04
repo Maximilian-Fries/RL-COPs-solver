@@ -36,4 +36,25 @@ Further types can be added in `get_graph_function` in utils.py.
 - `test_sizes`: The sizes of graphs on which we want to test for each of the types in `test_types`. Default sizes are 20, 50, 100 and 1000.
 - `decoding_type`: Specifies the decoding type. Possible options are 'local' (default), 'global', 'static' and 'zero_context'. You can load zero_context models for the GC problem from the [Zero-Context](Models/GC/Zero-Context) directory.
 
-Alternatively, you can also test the models on an arbitrary dataset using the `model_dataset_evaluation` method in `evaluate.py`. Pass the graphs as a list of networkx graphs in the `dataset` parameter. The `evaluate.py` file also contains two exmaples how these functions can be used. 
+Alternatively, you can also test the models on an arbitrary dataset using the `model_dataset_evaluation` method in `evaluate.py`. Pass the graphs as a list of networkx graphs in the `dataset` parameter. 
+
+The following code shows an example how to build a vertex cover on Zachary’s Karate Club graph using a  model
+trained with a GCN encoder and local decoding.
+
+```python
+from evaluate import model_dataset_evaluation
+from networkx.generators import karate_club_graph
+
+graph =karate_club_graph()
+data = [graph]
+model_dataset_evaluation(model_file='GCN-Experiments/Seed1/P-BA-L-GCN-1.pt',
+                         model_name='P-BA-L',
+                         dataset=data,
+                         initialization='zscore',
+                         save=False,
+                         problem_name='MVC',
+                         encoder_type='GCN', decoding_type='local')
+```
+This and another template for evaluation on synthetic graphs can be found in `example.py`.
+
+                      
