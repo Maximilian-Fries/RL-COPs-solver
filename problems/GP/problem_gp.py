@@ -115,17 +115,18 @@ class GPState_2(State):
     n_nodes: int
     partition_sizes: dict
     partition_neighbor_count: dict
+    decoding_type: str
     '''
     counts the assigned partitions for each's node neighborhood. If a node has more neighbors in one of the partitions 
     then adding the node to the same, will add less edges to the cut.
     '''
 
     @staticmethod
-    def initialize(input, embeddings, n_nodes, throwback_size):
+    def initialize(input, embeddings, n_nodes, throwback_size, decoding_type):
 
         batch_size = input.num_graphs if isinstance(input, torch_geometric.data.Batch) else 1
         return GPState_2(
-            adj=get_adjacency_list(input, embeddings.device),
+            adj=get_adjacency_list(input),
             embeddings=embeddings,
             visited=torch.zeros(batch_size, 1, n_nodes, device=embeddings.device).type(torch.uint8),
             sol_ind=torch.zeros(batch_size, 1, n_nodes, dtype=torch.int32, device=embeddings.device) - 1,
@@ -137,7 +138,8 @@ class GPState_2(State):
             context_throwback=deque(maxlen=throwback_size),
             n_nodes=n_nodes,
             partition_sizes={k: [0, 0, 0] for k in range(batch_size)},
-            partition_neighbor_count={k: {v: [0, 0] for v in range(n_nodes)} for k in range(batch_size)}
+            partition_neighbor_count={k: {v: [0, 0] for v in range(n_nodes)} for k in range(batch_size)},
+            decoding_type=decoding_type
         )
 
     def update(self, selected):
